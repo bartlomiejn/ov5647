@@ -1,14 +1,7 @@
-if VIDEO_V4L2
+CROSS_COMPILE=$(HOME)/Projects/toolchains/gcc-linaro-7.3.1-2018.05-x86_64_aarch64-linux-gnu
+MAKE_INV=make -C kernel/kernel-4.9/ ARCH=arm64 O=build LOCALVERSION=-tegra CROSS_COMPILE=$(CROSS_COMPILE) --output-sync=target 
 
-menu "Camera device support for Jetson Nano"
-	visible if !MEDIA_SUBDRV_AUTOSELECT || COMPILE_TEST
-
-config VIDEO_OV5647
-	tristate "OmniVision OV5647 Camera device support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	---help---
-	  V4L2 Driver for the OmniVision OV5647 camera.
-
-endmenu
-
-endif
+kernel:
+	$(MAKE_INV) zImage
+	$(MAKE_INV) modules
+	$(MAKE_INV) dtbs
