@@ -1,14 +1,14 @@
 if VIDEO_V4L2
 
-menu "Camera device support for Jetson Nano"
+menu "OV5647 Camera device support for Tegra"
 	visible if !MEDIA_SUBDRV_AUTOSELECT || COMPILE_TEST
 
 config VIDEO_OV5647
-	tristate "OmniVision OV5647 V4L2 support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	tristate "OmniVision OV5647 V4L2 device"
+	depends on OF && I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 
 config VIDEO_OV5647_DEBUG
-	bool "OmniVision OV5647 V4L2 advanced debug interface"
+	bool "OmniVision OV5647 V4L2 debug interface"
 	depends on VIDEO_OV5647
 
 endmenu

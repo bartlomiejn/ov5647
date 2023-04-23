@@ -41,6 +41,14 @@
 #define OV5647_NAME "ov5647"
 #define OV5647_OF_COMPAT "nv,ov5647"
 
+#define ASSERT_KZMALLOC(SYMBOL) \
+	if (!SYMBOL) \
+	{ \
+		dev_err(dev, "%s: kzalloc SYMBOL failed, no memory available.\n", \ 
+				__func__); \
+		return -ENOMEM; \
+	}
+
 struct ov5647 
 {
 	struct v4l2_subdev *subdev;
@@ -60,187 +68,37 @@ static inline struct ov5647 *to_ov5647(struct v4l2_subdev *sd)
 	return container_of(sd, struct ov5647, sd);
 }
 
-//
-// Write/read 
-//
-
-static int ov5647_write16(struct v4l2_subdev *sd, u16 reg, u16 val)
-{
-	int ret;
-	unsigned char data[4] = { reg >> 8, reg & 0xff, val >> 8, val & 0xff};
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	ret = i2c_master_send(client, data, 4);
-	/*
-	 * Writing the wrong number of bytes also needs to be flagged as an
-	 * error. Success needs to produce a 0 return code.
-	 */
-	if (ret == 4) {
-		ret = 0;
-	} else {
-		dev_dbg(&client->dev, "%s: i2c write error, reg: %x\n",
-				__func__, reg);
-		if (ret >= 0)
-			ret = -EINVAL;
-	}
-
-	return ret;
-}
-
-static int ov5647_write(struct v4l2_subdev *sd, u16 reg, u8 val)
-{
-	int ret;
-	unsigned char data[3] = { reg >> 8, reg & 0xff, val};
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	ret = i2c_master_send(client, data, 3);
-	/*
-	 * Writing the wrong number of bytes also needs to be flagged as an
-	 * error. Success needs to produce a 0 return code.
-	 */
-	if (ret == 3) {
-		ret = 0;
-	} else {
-		dev_dbg(&client->dev, "%s: i2c write error, reg: %x\n",
-				__func__, reg);
-		if (ret >= 0)
-			ret = -EINVAL;
-	}
-
-	return ret;
-}
-
-static int ov5647_read(struct v4l2_subdev *sd, u16 reg, u8 *val)
-{
-	int ret;
-	unsigned char data_w[2] = { reg >> 8, reg & 0xff };
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-	ret = i2c_master_send(client, data_w, 2);
-	/*
-	 * A negative return code, or sending the wrong number of bytes, both
-	 * count as an error.
-	 */
-	if (ret != 2) {
-		dev_dbg(&client->dev, "%s: i2c write error, reg: %x\n",
-				__func__, reg);
-		if (ret >= 0)
-			ret = -EINVAL;
-		return ret;
-	}
-
-	ret = i2c_master_recv(client, val, 1);
-	/*
-	 * The only return value indicating success is 1. Anything else, even
-	 * a non-negative value, indicates something went wrong.
-	 */
-	if (ret == 1) {
-		ret = 0;
-	} else {
-		dev_dbg(&client->dev, "%s: i2c read error, reg: %x\n",
-				__func__, reg);
-		if (ret >= 0)
-			ret = -EINVAL;
-	}
-
-	return ret;
-}
-
-static int ov5647_write_array(struct v4l2_subdev *sd,
-		struct regval_list *regs, int array_size)
-{
-	int i, ret;
-
-	for (i = 0; i < array_size; i++) {
-		ret = ov5647_write(sd, regs[i].addr, regs[i].data);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
-}
-
-//
-// Device
-//
-
 static int ov5647_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+						const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
+	struct device_node *node = client->dev.of_node;
+	struct ov5647 *dev;
+	struct tegracam_device *tc_dev;
+	int ret;
+
+	if (IS_ENABLED(CONFIG_OF) || !node)
+	{
+		dev_err(dev, "%s: CONFIG_OF not set or device_node not available."
+			    "Exiting.\n");
+		return -EINVAL;
+	} 
+
+	dev_info(dev, "%s: device name: %s init_name: %s node: %p\n", __func__,
+			 client->name, dev->init_name, node);
+
+	dev = devm_kzalloc(dev, sizeof(struct ov5647), GFP_KERNEL);
+	ASSERT_KZMALLOC(dev);
+
+	dev_info(dev, "%s: kzalloc success\n", __func__);
+
 	return 0;
 }
 
 static int ov5647_remove(struct i2c_client *client)
 {
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov5647 *ov5647 = to_ov5647(sd);
-
-	v4l2_async_unregister_subdev(&ov5647->sd);
-	media_entity_cleanup(&ov5647->sd.entity);
-	v4l2_ctrl_handler_free(&ov5647->ctrls);
-	v4l2_device_unregister_subdev(sd);
-	mutex_destroy(&ov5647->lock);
-
 	return 0;
 }
-
-#ifdef CONFIG_VIDEO_OV5647_DEBUG
-static int ov5647_sensor_get_register(struct v4l2_subdev *sd,
-		struct v4l2_dbg_register *reg)
-{
-	u8 val;
-	int ret;
-
-	ret = ov5647_read(sd, reg->reg & 0xff, &val);
-	if (ret < 0)
-		return ret;
-
-	reg->val = val;
-	reg->size = 1;
-
-	return 0;
-}
-
-static int ov5647_sensor_set_register(struct v4l2_subdev *sd,
-		const struct v4l2_dbg_register *reg)
-{
-	return ov5647_write(sd, reg->reg & 0xff, reg->val & 0xff);
-}
-#endif
-
-static int ov5647_s_stream(struct v4l2_subdev *sd, int enable)
-{
-	struct ov5647 *state = to_ov5647(sd);
-	int ret = 0;
-
-	mutex_lock(&state->lock);
-
-	if (enable)
-		ret = ov5647_stream_on(sd);
-	else
-		ret = ov5647_stream_off(sd);
-
-	mutex_unlock(&state->lock);
-	return ret;
-}
-
-// 
-// Operations
-//
-
-static const struct v4l2_subdev_core_ops ov5647_subdev_core_ops = {
-	.s_power = ov5647_sensor_power,
-#ifdef CONFIG_VIDEO_OV5647_DEBUG
-	.g_register	= ov5647_sensor_get_register,
-	.s_register	= ov5647_sensor_set_register,
-#endif
-	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
-	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
-};
-
-static const struct v4l2_subdev_video_ops ov5647_subdev_video_ops = {
-	.s_stream =	ov5647_s_stream,
-};
 
 static const struct i2c_device_id ov5647_id[] = {
 	{ OV5647_NAME, 0 },
@@ -268,6 +126,6 @@ static struct i2c_driver ov5647_driver = {
 module_i2c_driver(ov5647_driver);
 
 MODULE_VERSION(OV5647_VERSION);
-MODULE_DESCRIPTION("OmniVision OV5647 driver for Jetson Nano");
+MODULE_DESCRIPTION("OmniVision OV5647 driver for Tegra");
 MODULE_AUTHOR("Bartlomiej Nowak <bartlomiej.nwk@gmail.com>");
 MODULE_LICENSE("GPL v3");
