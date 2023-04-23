@@ -79,7 +79,7 @@ static int ov5647_write16(struct v4l2_subdev *sd, u16 reg, u16 val)
 		ret = 0;
 	} else {
 		dev_dbg(&client->dev, "%s: i2c write error, reg: %x\n",
-			__func__, reg);
+				__func__, reg);
 		if (ret >= 0)
 			ret = -EINVAL;
 	}
@@ -123,7 +123,7 @@ static int ov5647_read(struct v4l2_subdev *sd, u16 reg, u8 *val)
 	 */
 	if (ret != 2) {
 		dev_dbg(&client->dev, "%s: i2c write error, reg: %x\n",
-			__func__, reg);
+				__func__, reg);
 		if (ret >= 0)
 			ret = -EINVAL;
 		return ret;
@@ -147,7 +147,7 @@ static int ov5647_read(struct v4l2_subdev *sd, u16 reg, u8 *val)
 }
 
 static int ov5647_write_array(struct v4l2_subdev *sd,
-				struct regval_list *regs, int array_size)
+		struct regval_list *regs, int array_size)
 {
 	int i, ret;
 
@@ -165,7 +165,7 @@ static int ov5647_write_array(struct v4l2_subdev *sd,
 //
 
 static int ov5647_probe(struct i2c_client *client,
-						const struct i2c_device_id *id)
+		const struct i2c_device_id *id)
 {
 	return 0;
 }
@@ -186,7 +186,7 @@ static int ov5647_remove(struct i2c_client *client)
 
 #ifdef CONFIG_VIDEO_OV5647_DEBUG
 static int ov5647_sensor_get_register(struct v4l2_subdev *sd,
-									  struct v4l2_dbg_register *reg)
+		struct v4l2_dbg_register *reg)
 {
 	u8 val;
 	int ret;
@@ -202,7 +202,7 @@ static int ov5647_sensor_get_register(struct v4l2_subdev *sd,
 }
 
 static int ov5647_sensor_set_register(struct v4l2_subdev *sd,
-									  const struct v4l2_dbg_register *reg)
+		const struct v4l2_dbg_register *reg)
 {
 	return ov5647_write(sd, reg->reg & 0xff, reg->val & 0xff);
 }
@@ -243,8 +243,8 @@ static const struct v4l2_subdev_video_ops ov5647_subdev_video_ops = {
 };
 
 static const struct i2c_device_id ov5647_id[] = {
-    { OV5647_NAME, 0 },
-    { }
+	{ OV5647_NAME, 0 },
+	{ }
 };
 MODULE_DEVICE_TABLE(i2c, ov5647_id);
 
@@ -259,7 +259,7 @@ static struct i2c_driver ov5647_driver = {
 		.name = OV5647_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(ov5647_of_match),
-    },
+	},
 	.probe = ov5647_probe,
 	.remove = ov5647_remove,
 	.id_table = ov5647_id,
